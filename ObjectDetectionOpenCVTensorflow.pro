@@ -1,5 +1,5 @@
 # allows to add DEPLOYMENTFOLDERS and links to the Felgo library and QtCreator auto-completion
-CONFIG += felgo
+CONFIG += felgo resources_big
 
 QT += multimedia-private
 
@@ -39,6 +39,13 @@ ios {
 # set application icons for win and macx
 win32 {
     RC_FILE += win/app_icon.rc
+
+    LIBS += -LC:/opencv/build/x86/mingw/lib
+
+    LIBS += -lopencv_core410 \
+            -lopencv_imgcodecs410 \
+            -lopencv_imgproc410 \
+            -lopencv_dnn410
 }
 macx {
     ICON = macx/app_icon.icns

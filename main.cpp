@@ -2,6 +2,8 @@
 #include <FelgoApplication>
 #include <QQmlApplicationEngine>
 
+#include "cvfilter.h"
+
 int main(int argc, char *argv[])
 {
 
@@ -14,6 +16,8 @@ int main(int argc, char *argv[])
 
     QQmlApplicationEngine engine;
     felgo.initialize(&engine);
+
+    CVFilter::registerQMLType();
 
     felgo.setMainQmlFileName(QStringLiteral("qrc:/qml/Main.qml"));
 

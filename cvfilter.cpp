@@ -66,52 +66,65 @@ QImage CVFilter::videoFrameToImage(QVideoFrame *frame)
 
 void CVFilter::initNetwork()
 {
-    QFile modelFile(":/assets/classifiers/haarcascade_frontalface_default.xml");
-    QFile configFile(":/assets/classifiers/haarcascade_frontalface_default.xml");
 
-    QTemporaryFile modelTempFile;
-    QTemporaryFile configTempFile;
-
-    if(modelFile.open(QFile::ReadOnly | QFile::Text)){
-
-        if(modelTempFile.open())
-        {
-            modelTempFile.write(modelFile.readAll());
-            modelFile.close();
-        }
-        else
-        {
-            qDebug() << "Can't open model temp file.";
-            return;
-        }
-    }
-    else
-    {
-        qDebug() << "Can't open model file.";
+    if(!copyModelFilesIfNotExists()){
         return;
     }
 
-    if(configFile.open(QFile::ReadOnly | QFile::Text)){
+    const String model = (QDir::toNativeSeparators(appDataPath) + QDir::separator() + modelName).toStdString();
+    const String config = (QDir::toNativeSeparators(appDataPath) + QDir::separator() + configName).toStdString();
 
-        if(configTempFile.open())
-        {
-            configTempFile.write(modelFile.readAll());
-            configFile.close();
-        }
-        else
-        {
-            qDebug() << "Can't open model temp file.";
-            return;
+    tfNetwork = readNetFromTensorflow(model,config);
+
+}
+
+bool CVFilter::copyModelFilesIfNotExists()
+{
+    //create directory if it does not exist
+    QDir appDataDir(appDataPath);
+
+    if(!appDataDir.exists()){
+
+        if(appDataDir.mkpath(appDataPath)){
+            qDebug() << "App data directory created successfully";
+        }else {
+            qDebug() << "Could not create app data directory";
+            return false;
         }
     }
-    else
-    {
-        qDebug() << "Can't open model file.";
-        return;
+
+    //copy-paste model files if they don't exist
+    QFile modelFile(modelFilename);
+
+    if(!modelFile.exists()){
+
+        if(modelFile.copy(qrcModelFilename,modelFilename)){
+            qDebug() << "Model file copied successfully";
+            //set permissions
+            modelFile.setPermissions(QFileDevice::ReadUser | QFileDevice::WriteUser);
+        }else {
+            qDebug() << "Could not copy model file";
+            return false;
+        }
+
     }
 
-    tfNetwork = readNetFromTensorflow(modelTempFile.fileName().toStdString(),configFile.fileName().toStdString());
+    QFile configFile(configFilename);
 
+    if(!configFile.exists()){
+
+        if(configFile.copy(qrcConfigFilename,configFilename)){
+            qDebug() << "Config file copied successfully";
+            //set permissions
+            configFile.setPermissions(QFileDevice::ReadUser | QFileDevice::WriteUser);
+        }else {
+            qDebug() << "Could not copy config file";
+            return false;
+        }
+
+    }
+
+    return true;
 }
 
 CVFilterRunnable::CVFilterRunnable(CVFilter *filter) : QObject(nullptr), filter(filter)
@@ -177,14 +190,12 @@ void CVFilterRunnable::processImage(QImage &image)
 
 void CVFilterRunnable::detect(QImage image)
 {
-
     image = image.convertToFormat(QImage::Format_RGB888);
     cv::Mat frame(image.height(),
                 image.width(),
                 CV_8UC3,
                 image.bits(),
                 image.bytesPerLine());
-
 
     Mat inputBlob = blobFromImage(frame,
                                   filter->inScaleFactor,
@@ -211,8 +222,9 @@ void CVFilterRunnable::detect(QImage image)
             int right = static_cast<int>(detections.at<float>(i, 5) * frame.cols);
             int bottom = static_cast<int>(detections.at<float>(i, 6) * frame.rows);
 
-            rectangle(frame, Point(left, top), Point(right, bottom), Scalar(0, 255, 0));
-            String label = filter->classNames[objectClass].toStdString();
+            //rectangle(frame, Point(left, top), Point(right, bottom), Scalar(0, 255, 0));
+            //String label = filter->classNames[objectClass].toStdString();
+            qDebug() << objectClass;
         }
     }
 
