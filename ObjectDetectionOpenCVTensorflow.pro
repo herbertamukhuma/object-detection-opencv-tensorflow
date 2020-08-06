@@ -29,6 +29,27 @@ INCLUDEPATH += C:/opencv/build/include
 android {
     ANDROID_PACKAGE_SOURCE_DIR = $$PWD/android
     OTHER_FILES += android/AndroidManifest.xml       android/build.gradle
+
+    equals(ANDROID_TARGET_ARCH,armeabi-v7a) {
+
+        LIBS += -LC:/opencv/build/android/arch-arm/install/sdk/native/staticlibs/armeabi-v7a \
+                -LC:/opencv/build/android/arch-arm/install/sdk/native/3rdparty/libs/armeabi-v7a
+
+        LIBS += -lopencv_dnn \
+                -lopencv_imgcodecs \
+                -lopencv_imgproc \
+                -lopencv_core \
+                -lcpufeatures \
+                -lIlmImf \
+                -llibjasper \
+                -llibjpeg-turbo \
+                -llibpng \
+                -llibprotobuf \
+                -llibtiff \
+                -llibwebp \
+                -lquirc \
+                -ltegra_hal
+    }
 }
 
 ios {

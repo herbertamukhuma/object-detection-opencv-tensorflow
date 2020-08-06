@@ -4,5 +4,6 @@
         <file>qml/Main.qml</file>
         <file>assets/tensorflow/frozen_inference_graph.pb</file>
         <file>assets/tensorflow/frozen_inference_graph.pbtxt</file>
+        <file>assets/tensorflow/class_names.txt</file>
     </qresource>
 </RCC>

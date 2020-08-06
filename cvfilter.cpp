@@ -65,9 +65,14 @@ QImage CVFilter::videoFrameToImage(QVideoFrame *frame)
 }
 
 void CVFilter::initNetwork()
-{
-
+{   
+    //copy model files
     if(!copyModelFilesIfNotExists()){
+        return;
+    }
+
+    //load class names
+    if(!loadClassNames()){
         return;
     }
 
@@ -75,6 +80,8 @@ void CVFilter::initNetwork()
     const String config = (QDir::toNativeSeparators(appDataPath) + QDir::separator() + configName).toStdString();
 
     tfNetwork = readNetFromTensorflow(model,config);
+    tfNetwork.setPreferableBackend(DNN_BACKEND_OPENCV);
+    tfNetwork.setPreferableTarget(DNN_TARGET_CPU);
 
 }
 
@@ -122,6 +129,28 @@ bool CVFilter::copyModelFilesIfNotExists()
             return false;
         }
 
+    }
+
+    return true;
+}
+
+bool CVFilter::loadClassNames()
+{
+    QFile labelsFile(qrcClassesFilename);
+
+    if(labelsFile.open(QFile::ReadOnly | QFile::Text))
+    {
+        while(!labelsFile.atEnd())
+        {
+            QString line = labelsFile.readLine();
+            classNames[line.split(',')[0].trimmed().toInt()] = line.split(',')[1].trimmed();
+        }
+
+        labelsFile.close();
+
+    }else {
+        qDebug() << "-- Unable to open class names file....";
+        return false;
     }
 
     return true;
@@ -205,16 +234,17 @@ void CVFilterRunnable::detect(QImage image)
                                   false);
     filter->tfNetwork.setInput(inputBlob);
     Mat result = filter->tfNetwork.forward();
-    Mat detections(result.size[2], result.size[3], CV_32F, result.ptr<float>());
+    Mat detections(result.size[2], result.size[3], CV_32F, result.ptr<float>(0,0));
+
+    QJsonArray rects;
+    QJsonObject rect;
 
     for(int i = 0; i < detections.rows; i++)
     {
         float confidence = detections.at<float>(i, 2);
 
         if(confidence > filter->confidenceThreshold)
-        {
-            using namespace cv;
-
+        {            
             int objectClass = (int)(detections.at<float>(i, 1));
 
             int left = static_cast<int>(detections.at<float>(i, 3) * frame.cols);
@@ -222,10 +252,27 @@ void CVFilterRunnable::detect(QImage image)
             int right = static_cast<int>(detections.at<float>(i, 5) * frame.cols);
             int bottom = static_cast<int>(detections.at<float>(i, 6) * frame.rows);
 
-            //rectangle(frame, Point(left, top), Point(right, bottom), Scalar(0, 255, 0));
-            //String label = filter->classNames[objectClass].toStdString();
-            qDebug() << objectClass;
+            double rX = (double)left/(double)frame.cols;
+            double rY = (double)top/(double)frame.rows;
+            double rWidth = right - left;
+            rWidth = rWidth/(double)frame.cols;
+            double rHeight = bottom - top;
+            rHeight = rHeight/(double)frame.rows;
+
+            rect.insert("className",filter->classNames[objectClass]);
+            rect.insert("rX",rX);
+            rect.insert("rY",rY);
+            rect.insert("rWidth",rWidth);
+            rect.insert("rHeight",rHeight);
+
+            rects.append(rect);
+
+            //qDebug() << objectClass;
         }
+    }
+
+    if(rects.count() > 0){
+        emit filter->objectsDetected(QString::fromStdString(QJsonDocument(rects).toJson().toStdString()));
     }
 
     filter->isProcessing = false;
