@@ -233,6 +233,9 @@ void CVFilterRunnable::detect(QImage image)
                                   true,
                                   false);
     filter->tfNetwork.setInput(inputBlob);
+    // Network produces output blob with a shape 1x1xNx7 where N is a number of
+    // detections and an every detection is a vector of values
+    // [batchId, classId, confidence, left, top, right, bottom]
     Mat result = filter->tfNetwork.forward();
     Mat detections(result.size[2], result.size[3], CV_32F, result.ptr<float>(0,0));
 
